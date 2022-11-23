@@ -46,7 +46,7 @@
            username: karthickkumarp@imss.co.in
            password: 9MneX1LDYJP2
            from: karthickkumarp@imss.co.in
-           to: vanamadhu <vanamadhu@imss.co.in>, 
+           to: Janakiramu G <janakiramug@imss.co.in> 
            subject: Inventory host list for exception
            body: |
                     This is host list of available patches  "{{ inventory_hostname }}"
