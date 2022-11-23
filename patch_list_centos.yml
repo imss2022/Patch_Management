@@ -35,7 +35,7 @@
         shell:
               yum --security check-update
         register: rhel
-        when: ansible_distribution == "CentOS" ansible_distribution == "RedHat"
+        when: ansible_os_family == "RedHat" 
       - debug:
               msg: "{{ rhel.stdout }}"
 
