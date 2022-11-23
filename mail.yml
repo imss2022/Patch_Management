@@ -1,11 +1,11 @@
 - name: Notification for  Insufficent disk space
   mail:
-    host: 10.2.250.26
-    port: 25
-    username: ANSIBLEAUTO@mahindra.com
-    password: L090n@321
-    from: <ANSIBLEAUTO@mahindra.com>
-    to: GANGURDE SUHAS<GANGURDE.SUHAS@mahindra.com>
+    host: smtp.zoho.in
+    port: 465
+    username: karthickkumarp@imss.co.in
+    password: 9MneX1LDYJP2
+    from: <karthickkumarp@imss.co.in>
+    to: Janakiramu G <janakiramug@imss.co.in>
     subject: patch update failure notification
     body: |
            In this host "{{ inventory_hostname }}"
