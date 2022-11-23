@@ -1,0 +1,38 @@
+---
+- name: Master DB updation
+  hosts: localhost
+  become: true
+  ignore_errors: yes
+  vars:
+    username: 'postgres'
+    password: 'Ansible@POC'
+    ansible_python_interpreter: /usr/bin/python3
+    date: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+  vars_files:
+    - "{{ variable_file }}"
+  tasks:
+
+    - name: Get timestamp from the system
+      shell: "date +%Y-%m-%d%H-%M-%S"
+      register: tstamp
+
+    - name: Set variables
+      set_fact:
+        cur_date: "{{ tstamp.stdout[0:10] }}"
+
+    - name: Reading the application patches to update database
+      shell: |
+             cat '{{ project_directory }}s3.csv'
+           
+      register: sec_patches
+      delegate_to: localhost
+
+    - name: Inserting Exception data
+      postgresql_query:
+        login_user: "{{ username }}"
+        login_password: "{{ password }}"
+        db: patch_store
+        #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+        # query: INSERT INTO updated_patches(patch_name,patch_type,host_name,OS,patched_date) VALUES ('{{item.split(',')[0]}}','updated','{{item.split(',')[1]}}','ubuntu','{{date}}');
+        query: INSERT INTO patched_data(host_name,patch_name,os,version,job_started_date,status,reason,patched_date) VALUES ('{{item.split(',')[1]}}','{{item.split(',')[0]}}','ubuntu','16.04',current_timestamp,'sucessful','Patch updates sucessfully','{{date}}');
+      loop: "{{ sec_patches.stdout_lines }}"

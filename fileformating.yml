@@ -1,0 +1,19 @@
+---
+  - name: Formating existing data
+    hosts: localhost
+    gather_facts: no
+    tasks:
+      - name: deleating data
+        file: 
+            path: "{{ item }}"
+            state: absent
+        with_items:
+              - /tmp/patches/*.csv
+
+              - /tmp/s1.csv
+              - /tmp/s2.csv
+              - /tmp/s3.csv
+              - /tmp/s4.csv
+              - /tmp/updates/*.csv
+
+

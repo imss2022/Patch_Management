@@ -1,0 +1,67 @@
+---
+ - name: Master DB updation
+   hosts: localhost
+   become: true
+   vars:
+    username: 'postgres'
+    password: 'Ansible@POC'
+    ansible_python_interpreter: /usr/bin/python3
+    date: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+   tasks:
+
+    - name: Get timestamp from the system
+      shell: "date +%Y-%m-%d%H-%M-%S"
+      register: tstamp
+
+    - name: Set variables
+      set_fact:
+        cur_date: "{{ tstamp.stdout[0:10] }}"
+
+    - name: Reading the application patches to update database
+      shell: |
+             cat /tmp/updates/manual_list.csv
+      register: app_patches
+      delegate_to: localhost
+
+    - name: Inserting Exception data
+      postgresql_query:
+        login_user: "{{ username }}"
+        login_password: "{{ password }}"
+        db: patch_store
+        #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+        query: INSERT INTO patch_application(patch_name,"patch_type",host_name,os,version,patched_date) VALUES ('{{item.split(',')[0]}}','application','{{ item.split(',')[1]}}','ubuntu','{{item.split(',')[2]}}','{{date}}');
+      loop: "{{ app_patches.stdout_lines }}"
+      ignore_errors: yes
+
+    - name: Reading the security patches to update database
+      shell: |
+             cat /tmp/patches/*_2.csv
+      register: sec_patches
+      delegate_to: localhost
+    - name: Inserting Exception data
+      postgresql_query:
+        login_user: "{{ username }}"
+        login_password: "{{ password }}"
+        db: patch_store
+        #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+        query: INSERT INTO patch_security(patch_name,"patch_type",host_name,os,version,patched_date) VALUES ('{{item.split(',')[0]}}','security','{{ item.split(',')[1]}}','ubuntu','{{item.split(',')[2]}}','{{date}}');
+      loop: "{{ sec_patches.stdout_lines }}"
+      ignore_errors: yes
+
+    - name: Reading the security patches to update database
+      shell: |
+              cat /tmp/data.csv
+      register: sec_patches
+      delegate_to: localhost
+
+    - name: Inserting inventorydata for exception
+      postgresql_query:
+             login_user: "{{ username }}"
+             login_password: "{{ password }}"
+             db: patch_store
+                    #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+             query: INSERT INTO exception_list(hostname,exception) VALUES ('{{item.split(',')[0]}}','{{item.split(',')[1]}}');
+      loop: "{{ sec_patches.stdout_lines }}"                                                                                          
+      ignore_errors: yes
+
+

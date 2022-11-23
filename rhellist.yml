@@ -1,0 +1,37 @@
+---
+  - name: listing all available packages
+    hosts: all
+    gather_facts: yes
+    tasks:
+      - name: checking all available updates
+        yum:
+           list: updates
+           update_cache: true
+           security: no
+           bugfix: no
+        check_mode: yes
+        register: centos
+        when: ansible_distribution == "RedHat"
+      - debug:
+           msg: "{{ centos.results }}"
+        when: ansible_distribution == "RedHat"
+
+      - name: copying all available updates
+        shell:
+             echo "{{ item.name }}, {{ inventory_hostname }}, {{ ansible_distribution_version }}" >> /tmp/patches/{{ inventory_hostname }}_2.csv
+        delegate_to: localhost
+        loop: "{{ centos.results }}"
+
+      - name: checking all Anailable updates
+        shell:
+              yum --security check-update
+        register: rhel
+        when: ansible_distribution == "RedHat"
+      - debug:
+              msg: "{{ rhel.stdout }}"
+      - name: copying all available updates
+        shell: |
+               echo "{{ item.name }}, {{ inventory_hostname }}, {{ ansible_distribution_version }}" >> /tmp/patches/{{ inventory_hostname }}_3.csv
+        delegate_to: localhost
+        loop: "{{ rhel.stdout }}"
+

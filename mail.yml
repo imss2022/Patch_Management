@@ -1,0 +1,14 @@
+- name: Notification for  Insufficent disk space
+  mail:
+    host: 10.2.250.26
+    port: 25
+    username: ANSIBLEAUTO@mahindra.com
+    password: L090n@321
+    from: <ANSIBLEAUTO@mahindra.com>
+    to: GANGURDE SUHAS<GANGURDE.SUHAS@mahindra.com>
+    subject: patch update failure notification
+    body: |
+           In this host "{{ inventory_hostname }}"
+           the following task failed "{{ ansible_failed_task.name }}"
+           "{{ ansible_failed_task }}"
+

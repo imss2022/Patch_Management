@@ -1,0 +1,36 @@
+---
+  - name: reboot exception
+    hosts: localhost
+    ignore_errors: yes
+    vars_files:
+       - "{{ variable_file }}"
+    tasks:
+      - name: Getting exception data from data base
+        postgresql_copy:
+               db: patch_store
+               login_user: postgres
+               login_password: Ansible@POC
+               src: 'select host_name,status from reboot_list'
+               copy_to: /var/lib/pgsql/patch_management/{{ os_version }}_reboot_exception.csv
+               options:
+                       format: csv
+      - name: reading data
+        shell: | 
+              cat '{{ project_directory }}reboot.csv'
+        register: reboot
+
+      - name: reading exception data
+        shell: | 
+                cat /var/lib/pgsql/patch_management/{{ os_version }}_reboot_exception.csv | grep -i yes | cut -d ',' -f1
+        register: exception
+      - debug:
+              msg: "{{ exception }}"
+      - name: comparing files
+        shell: echo "{{ item }}"
+        register: final_hosts
+        loop: "{{ reboot.stdout_lines }}"
+        when: item in exception.stdout_lines
+      - shell: |
+             echo "{{ item.stdout }}" >> '{{ project_directory }}finalhosts.csv'
+        loop: "{{ final_hosts.results }}"
+        when: item is changed

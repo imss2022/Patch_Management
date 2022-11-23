@@ -1,0 +1,38 @@
+---
+- name: reboot DB updation
+  hosts: all
+  become: true
+  vars:
+    username: 'postgres'
+    password: 'Ansible@POC'
+    ansible_python_interpreter: /usr/bin/python3
+    date: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+  vars_files:
+      - "{{ variable_file }}"
+  tasks:
+    - name: Get timestamp from the system
+      shell: "date +%Y-%m-%d%H-%M-%S"
+      register: tstamp
+
+    - name: Set variables
+      set_fact:
+        cur_date: "{{ tstamp.stdout[0:10] }}"
+    - name: Reading the ip's to update database
+      shell: |
+             cat '{{ project_directory }}reboot.txt'
+             echo 'no such file available'
+      register: reboot
+      delegate_to: localhost
+      ignore_errors: yes
+
+    - name: Inserting Exception data
+      postgresql_query:
+        login_user: "{{ username }}"
+        login_password: "{{ password }}"
+        db: patch_store
+        #query: INSERT INTO reboot_list(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+        query: INSERT INTO reboot_list(host_name,OS,job_stated_date,status) VALUES ('{{item}}','{{ os_version }}','{{date}}','yes' );
+      loop: "{{ reboot.stdout_lines }}"
+      ignore_errors: yes
+
+

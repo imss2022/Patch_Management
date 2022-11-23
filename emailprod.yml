@@ -1,0 +1,71 @@
+---
+- name: Patch Management(PROD)
+  hosts: localhost
+  gather_facts: no
+  #vars_files:
+  #  - vars.yml
+  vars:
+  #  ansible_python_interpreter: /usr/bin/python
+    date: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
+ 
+  tasks:
+    - name: Updating PATCH’s at PROD
+      block:
+        - name: register the ouput for play recap
+          shell: cat /var/log/ansible.log
+          register: emailbody1
+          
+       # - name: register the output for email body
+       #   shell: cd /var/lib/awx/projects/PatchManagement/Servers/approved/ && ls *.csv |cut -d "." -f1,2,3,4
+       #   register: emailbody
+       # - name: Gathering missing sudo password hosts details
+       #   shell: cat /var/lib/awx/projects/PatchManagement/ansible.log|grep "item=Missing sudo password" |cut -d " " -f8 |sed 's/^.//' > /var/lib/awx/projects/PatchManagement/logs/sudopassword.csv
+        
+        - name: Notification along with summary report for manual verification to sysadmin
+          mail:
+            host: smtp.zoho.com
+            port: 25
+            from: priyankakoneru@imss.co.in
+            to: priyakakoneru@imss.co.in
+            subject: Patch Management Summary report - {{ qualys_report }}
+            body: |
+                   Hi Ansible Team
+                   
+                   Workflow status after approval:
+           
+                   WF1 - Production patch update once approved - Executed Successfully
+                   WF2 - Identifying the host requires reboot -  Executed Successfully
+                   WF3 - Production DB data updation for report generation - Executed Successfully
+                   # WF14 - Raw data Updation for report comparison in qualys - Executed Successfully
+                   
+                   Production play recap:
+                   "{{ emailbody1.stdout_lines }}"
+
+                   Please find the Summary report and unreachable hosts list as an attachment  
+            attach: 
+            - /tmp/unrechable_hosts.csv
+            - /tmp/s1.csv
+              #  - /var/lib/awx/projects/PatchManagement/{{qualys_report}}/logs/nospaceleft.csv
+              # - /var/lib/awx/projects/PatchManagement/{{qualys_report}}/logs/repo_error.csv
+              # - /var/lib/awx/projects/PatchManagement/{{qualys_report}}/logs/miscellaneous.csv
+            
+        - name: moving the ansible log to folder
+          shell: cp -r /var/lib/awx/projects/PatchManagement/ansible.log   /var/lib/awx/projects/PatchManagement/{{qualys_report}}/logs/ansiblelog{{ date }}
+          
+        - name: Notification on Host requires reboot 
+          mail:
+            host: 10.217.10.90
+            port: 25
+            from: Ansible Tower <infosysit_ansible@infosys.com>
+            to: Ansible <Infosysit.ansible@infosys.com>
+            subject: Patch Management Host Requires Reboot - {{ qualys_report }}
+            body: |
+                   Hi Ansible Team
+                   The Following host requires reboot 
+                   PFA
+ 
+            attach: 
+            - /tmp/reboot.txt
+
+      rescue:
+        - include_tasks: email.yml

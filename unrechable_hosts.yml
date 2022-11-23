@@ -1,0 +1,66 @@
+---
+  - name: Formating file data
+    hosts: localhost
+    gather_facts: yes
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+      - name: reading the data
+        find:
+          paths: "{{ project_directory }}"
+          patterns: "*.csv"
+       
+          #   - "{{ project_directory }}{{ patch_info_directory }}"
+        register: service_files
+      - debug:
+           msg: "{{ item.path}}"
+        loop: "{{ service_files.files }}"
+      - name: Removing the existing data
+        file:
+           path: "{{ item.path }}"
+           state: absent
+        register: remove_files
+        loop: "{{ service_files.files }}"
+        
+      - name: reading the data
+        find:
+          paths: "{{ project_directory }}{{ patch_info_directory }}"
+          patterns: "*.csv"
+
+          #   - "{{ project_directory }}{{ patch_info_directory }}"
+        register: service_file
+      - debug:
+           msg: "{{ item.path}}"
+        loop: "{{ service_files.files }}"
+      - name: Removing the existing data
+        file:
+           path: "{{ item.path }}"
+           state: absent
+        register: remove_files
+        loop: "{{ service_file.files }}"
+
+      - debug:
+            msg: "{{ remove_files }}"
+
+  - name: Checking hosts connection
+    hosts: all
+    gather_facts: yes
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+        - block:
+             - debug:
+                     var: ansible_play_hosts_all
+             - debug:
+                  var: ansible_play_hosts
+             - set_fact:
+                     down: "{{ ansible_play_hosts_all | difference(ansible_play_hosts) }}"
+             - debug:
+                  var: down
+          run_once: yes
+ 
+        - name: collecting unrechable hosts
+          copy:
+             content: "{{ down | replace ('[','') | replace (']','') | replace (\"'\",'') }}"
+             dest: '{{ project_directory }}{{ unreachable_host_file }}'
+          delegate_to: localhost

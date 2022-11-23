@@ -1,0 +1,25 @@
+---
+  - name: reading security patches
+    hosts: localhost
+    gather_facts: yes
+    tasks:
+      - name: Inserting Exception data
+        postgresql_query:
+                     login_user: postgres
+                     login_password: Ansible@POC
+                     db: patch_store
+                   #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+                     query: SELECT patch_name, exception FROM patch_application;
+        register: patches
+      - debug:
+              msg: "{{ patches }}"
+      - name: reading patches
+        postgresql_copy:
+                db: patch_store
+                login_user: postgres
+                login_password: Ansible@POC
+                src: 'select patch_name,host_name, exception from patch_application'        
+                copy_to: /tmp/data.csv
+                options:
+                    format: csv
+        delegate_to: localhost 

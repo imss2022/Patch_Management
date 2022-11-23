@@ -1,0 +1,38 @@
+---
+- name: Check for reboot hint.
+  hosts: all
+  gather_facts: no
+  become: yes
+  ignore_errors: yes
+  ignore_unreachable: yes
+  vars_files:
+    - "{{ variable_file }}"
+  tasks:
+    - block:
+        - name: Reboot Check
+          shell: |
+                 LAST_KERNEL=$(rpm -q --last kernel | awk 'NR==1{sub(/kernel-/,""); print $1}'); CURRENT_KERNEL=$(uname -r); if [ $LAST_KERNEL != $CURRENT_KERNEL ]; then echo 'reboot'; else echo 'no'; fi
+          register: reboot_required
+          ignore_errors: true
+
+        - debug:
+              msg: "{{reboot_required}}"
+
+        - name: getting list
+          debug:
+              msg: "{{ inventory_hostname }}"
+          when: reboot_required.stdout.find("reboot") == -1
+          register: reboot_list
+           # - debug:
+           #     msg: "{{ reboot_list.msg }}"
+        - name: collecting data
+          copy:
+            content: "{{ reboot_list.msg }}"
+            dest: '{{ project_directory }}reboot.txt'
+          when: reboot_required.stdout.find("reboot") == -1
+          delegate_to: localhost
+
+      rescue:
+          - debug:
+                  msg: No Systems Require Reboot
+          - include_tasks: mail.yml

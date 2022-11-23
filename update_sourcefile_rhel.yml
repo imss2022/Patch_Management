@@ -1,0 +1,23 @@
+---
+  - name: updating local repo
+    hosts: all
+    become: yes
+    gather_facts: yes
+    ignore_errors: yes
+    tasks:
+      - name: creating backup file
+        file:
+             path: /etc/yum.repos.d/backup
+             state: directory
+             mode: 664
+
+      - name: moving to  backup file
+        shell: |
+                mv /etc/yum.repos.d/* backup/
+       
+      - name: adding local repo
+        copy:
+           src: /var/lib/awx/projects/playbook_patch_managment/sourcefiles/local-repos.repo-rhel
+           dest: /etc/yum.repos.d/local-repos.repo
+           mode: 644
+        when: ansible_distribution == "RedHat"

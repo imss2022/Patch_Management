@@ -1,0 +1,61 @@
+---
+  - name: rollback
+    hosts: all
+    gather_facts: yes
+    become: yes
+    ignore_errors: yes
+    vars:
+       ansible_sudo_pass: ansible@1
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+      - name: collecting data to rollback
+        shell: |
+               cat /var/log/yum.log | grep 'Nov 08' | grep Updated | awk -F " " '{ $1=$2=$3=$4=""; print $0 }'| cut --complement -d ' ' -f1,2,3,4
+                # | cut --complement -d ' ' -f1,2,3 > /tmp/rollback.csv
+        register: updates
+        when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat"
+      - debug:
+             msg: "{{ updates.stdout_lines }}"
+
+      - name: collecting patch name
+        shell: |
+                echo "{{ item.split ('.')[0] }}" | sed 's/..$//' >> '{{ project_directory }}dataa.csv'
+                #   register: patch_name
+        loop: "{{ updates.stdout_lines }}"
+        delegate_to: localhost
+      - name: reading data
+        shell:
+              cat /tmp/dataa.csv
+        register: patch_name
+        delegate_to: localhost
+      - name: listing the versions
+        shell: |
+                yum --showduplicate list "{{ item }}"
+        register: versions
+        loop: "{{ patch_name.stdout_lines }}"
+
+      - debug:
+             msg: "{{ versions.results }}"
+      - name: debut name and version
+        shell: |
+                #echo "{{ item.stdout_lines }}" >> dataa.csv
+                echo "{{ item.stdout_lines }}" | awk -F "," '{print $8}' | tr -d " '"  >> '{{ project_directory }}dataa_1.csv'
+        loop: "{{ versions.results }}"
+        register: version
+        delegate_to: localhost
+        # - name: registering data
+        #  shell: |
+                #    awk -i inplace -F, 'BEGIN{OFS=" "}{gsub("\047","",$1); print}' dataa.csv
+      - name: updates
+        shell:
+               cat {{ project_directory }}dataa_1.csv
+                # echo "{{ item.split(' ')[0] }} {{ item.split(' ')[0]}}" > >dat.csv
+        register: data
+        delegate_to: localhost
+      - name: rolling back packages
+        shell: |
+                yum downgrade "{{ item.split('.')[0] }}" -y
+        loop: "{{ data.stdout_lines }}"
+               
+

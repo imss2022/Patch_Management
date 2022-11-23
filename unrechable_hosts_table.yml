@@ -1,0 +1,32 @@
+---
+- name: reboot DB updation
+  hosts: localhost
+  become: true
+  vars:
+    username: 'postgres'
+    password: 'Ansible@POC'
+    ansible_python_interpreter: /usr/bin/python3
+    date: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+  tasks:
+    - name: Get timestamp from the system
+      shell: "date +%Y-%m-%d%H-%M-%S"
+      register: tstamp
+
+    - name: Set variables
+      set_fact:
+              cur_date: "{{ tstamp.stdout[0:10] }}"
+    - name: Reading the ip's to update database
+      shell: |
+              cat /tmp/unrechable_hosts.csv
+      register: reboot
+      delegate_to: localhost
+
+    - name: Inserting Exception data
+      postgresql_query:
+              login_user: "{{ username }}"
+              login_password: "{{ password }}"
+              db: patch_store
+              #query: INSERT INTO patch_details(patch_name,"patch_type",OS,"Patch Date") VALUES ('{{item}}', 'application', 'ubuntu', 'currentdate');
+              query: INSERT INTO unrechable_hosts(host_name,OS,patched_date) VALUES ('{{item}}','ubuntu','{{date}}');
+      loop: "{{ reboot.stdout_lines }}"
+      ignore_errors: yes

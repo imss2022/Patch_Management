@@ -1,0 +1,46 @@
+---
+  - name: rollback
+    hosts: ubuntu
+    gather_facts: yes
+    become: yes
+    vars:
+        ansible_sudo_pass: ansible@1
+    tasks:
+      - name: collecting data to rollback
+        shell: |
+                cat /var/log/dpkg.log | grep upgrade | awk -F " " '{ $1=$2=$3=""; print $0 }' | cut --complement -d ' ' -f1,2,3 
+                # > /tmp/rollback.csv
+        register: updates
+
+      - name: collecting patch name
+        shell: |
+                cat /tmp/rollback.csv | awk -F ":" '{print $1}'
+        register: patch_name
+      - debug:
+             msg: "{{ updates.stdout_lines }}"
+      - name: listing the versions
+        shell: |
+                apt list -a "{{ item.split(':')[0]  }}"
+        register: versions
+        loop: "{{ updates.stdout_lines }}"
+
+      - debug:
+             msg: "{{ versions.results }}"
+      - name: debut name and version
+        shell: |
+                #  echo "{{ item.stdout_lines }}" >> dataa.csv
+                echo "{{ item.stdout_lines }}" | awk -F " " '{print $6,$7}' |  awk -i inplace -F, 'BEGIN{OFS=","}{gsub("\047","",$0); print}'  >> dataa.csv
+        loop: "{{ versions.results }}"
+        register: version
+      - name: registering data
+        shell: |
+               cat dataa.csv
+        register: data
+      - debug:
+            msg: "{{ data }}"
+      - name: rolling back packages
+        shell: |
+                apt install --allow-downgrades  "{{ item.split('/')[0] }}={{ item.split(' ')[1] }}" -y
+        loop: "{{ data.stdout_lines }}"
+               
+

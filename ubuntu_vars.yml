@@ -1,0 +1,15 @@
+---
+######  Working DIrectory's  ######
+project_directory: /var/lib/awx/projects/PatchManagment/Ubuntu/
+patch_info_directory: patches/
+
+
+
+#######  Project Files  ######
+unreachable_host_file: unrechable_host.csv
+inventory_list_file: data.csv
+
+
+
+#### postges Variable #####
+os_version: ubuntu

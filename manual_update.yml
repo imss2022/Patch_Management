@@ -1,0 +1,112 @@
+---
+  - hosts: ubuntu
+    ignore_errors: yes
+    become: yes
+    # become_method: sudo
+    #become_user: root
+    vars:
+    # ansible_user: ubuntu16
+      ansible_sudo_pass: "user1"
+    # ansible_become_pass: "user1"
+    tasks:
+     - block:
+        
+         - name: file
+           shell: |
+                  cat /tmp/updates/manual_list.csv | cut -d ',' -f1 
+           register: update 
+           delegate_to: localhost
+           # when: inventory_hostname != hostname.stdout_lines
+
+         - name: Avaliable patch updates
+           debug:
+                   msg: "{{ update.stdout_lines }}"
+         - name: packages
+           apt:
+             name: "{{ item }}"
+             state: present
+           register: item1 
+           loop: "{{ update.stdout_lines }}"
+         - debug:
+             msg: "{{ item1.results }}"
+           register: result
+         - name: failed patches list
+           debug: 
+               msg: "{{ item.invocation.module_args.package }}"
+           when: item is failed
+           loop: "{{ item1.results }}"
+         - name: failed patches list
+           shell: |
+                 echo "{{ item.invocation.module_args.name }}, {{ item.msg }}, {{ inventory_hostname }}" >> /tmp/s1.csv
+           register: example2out
+           when: item is failed
+           loop: "{{ item1.results }}"
+           delegate_to: localhost
+         - name: packages_avaliable
+           debug:
+             msg: "{{ item.invocation.module_args.package | list }}"
+           when: item is not failed
+           loop: "{{ item1.results }}"
+           register: packages_avaliable
+           delegate_to: localhost
+         - name: available patches list
+           shell: |
+               echo "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}" >> /tmp/s2.csv
+           register: example2out
+           when: item is not failed
+           loop: "{{ item1.results }}"
+           delegate_to: localhost
+         - name: packages_updated
+           debug:
+             msg: "{{ item.invocation.module_args.package | list }}"
+           when: item is  changed
+           loop: "{{ item1.results }}"
+           register: packages_updated
+           delegate_to: localhost
+         - name: patches updated list
+           shell: |
+              echo "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}, {{ ansible_distribution_version }}" >> /tmp/s3.csv
+           register: example2out
+           when: item is changed
+           loop: "{{ item1.results }}"
+           delegate_to: localhost
+         - name: packages already updated
+           debug:
+             msg: "{{ item.invocation.module_args.package | list }}"
+           when: item is not changed
+           loop: "{{ item1.results }}"
+           register: packages_updated
+           delegate_to: localhost  
+         - name: packages already updated
+           shell: |
+              echo  "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}" >> /tmp/s4.csv
+           register: example2out
+           when: item is not changed
+           loop: "{{ item1.results }}"
+           delegate_to: localhost
+         - name: remove 
+           shell:
+               awk -i inplace -F, 'BEGIN{OFS=","}{gsub("\047","",$2); print}' /tmp/s1.csv
+           delegate_to: localhost
+
+       rescue:
+         - name: patch update 
+           debug:
+              msg: 'patch update failed'
+         - name: Notification for  Insufficent disk space
+           mail:
+                host: smtp.zoho.in
+                port: 465
+                username: priyankakoneru@imss.co.in
+                password: 
+                from: Priyanka Koneru <priyankakoneru@imss.co.in>
+                #to: Ansible
+                to:  Priyanka Koneru <priyankakoneru@imss.co.in>
+                subject: patch update failure notification
+                body: |
+                  patch update failed 
+
+
+
+
+

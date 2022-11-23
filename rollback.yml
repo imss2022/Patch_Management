@@ -1,0 +1,46 @@
+---
+  - name: rolling back updates
+    hosts: all
+    become: yes
+    ignore_errors: yes
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+      - name: getting the list of recent updates
+        shell: |
+               cat /var/log/dpkg.log.1 | grep upgrade | awk -F " " '{ $1=$2=$3=""; print $0 }' | cut --complement -d ' ' -f1,2,3 > '{{ project_directory }}rollback.csv'
+        register: update
+        when: ansible_distribution == "Ubuntu"
+        delegate_to: localhost
+      - name: collecting updates
+        shell: |
+                cat  '{{ project_directory }}rollback.csv' | cut  -d ':' -f1 
+        register: updates
+        when: ansible_distribution == "Ubuntu"
+        
+      - debug:
+              msg: "{{ updates.stdout_lines }}"
+        delegate_to: localhost
+
+      - name: gathering versions
+        shell: |
+                cat  '{{ project_directory }}rollback.csv' | awk -F " " '{print$1,$2}' 
+        register: versions
+        #       loop: "{{ updates.stdout_lines }}"
+      
+      - debug:
+              msg: "{{ versions }}"
+
+      - name: rolling back
+        shell: |
+                echo "{{ item.split(':')[0] }} {{ item.split(' ')[1] }}"
+        register: demo
+        loop: "{{ versions.stdout_lines }}"
+      - debug:
+              msg: "{{ demo }}"
+
+      - name: down grade the above package
+        shell: |
+                apt install --allow-downgrades "{{ item.split(':')[0] }}={{ item.split(' ')[1] }}" -y
+        loop: "{{ versions.stdout_lines }}"
+

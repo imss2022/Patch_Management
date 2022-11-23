@@ -1,0 +1,145 @@
+---
+  - name: feting host list
+    hosts: localhost
+    gather_facts: yes
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+       - block:
+            - name: collecting data
+              shell:
+                  cat {{ project_directory }}{{ inventory_list_file }} | grep -i no | cut -d ',' -f1
+              register: outputs
+              # delegate_to: localhost
+
+            - debug:
+                   msg: "{{ outputs }}"
+              # delegate_to: localhost
+            - name: creating host group
+              add_host:
+                  name: "{{ item }}"
+                  groups: patches
+              loop: "{{ outputs.stdout_lines }}"
+              # when: "{{ output.stdout_lines }}" == 'yes'
+              delegate_to: localhost
+         rescue:
+             - include_tasks: mail.yml
+  - hosts: patches
+    ignore_errors: yes
+    become: yes
+    # become_method: sudo
+    #become_user: root
+    # vars:
+    # ansible_user: ubuntu16
+    # ansible_ssh_pass: "user1"
+    # ansible_become_pass: "user1"
+    vars_files:
+      - "{{ variable_file }}"
+    tasks:
+     - block:
+         - name: list
+           lineinfile:
+             path: '{{ project_directory }}{{ patch_info_directory }}{{ inventory_hostname }}_1.csv'
+             insertbefore: BOF
+             line: dummy1
+             state: present
+           register: example2out
+           delegate_to: localhost
+         - name: file
+           shell:
+                 cat {{ project_directory }}{{ patch_info_directory }}{{ inventory_hostname }}_1.csv | cut -d ',' -f1
+           register: update
+           delegate_to: localhost
+         - name: Avaliable patch updates
+           debug:
+                   msg: "{{ update.stdout_lines }}"
+
+         - name: patch updation
+           yum:
+             name: "{{ item }}"
+             state: latest
+             update_cache: yes
+           register: centos
+           loop: "{{ update.stdout_lines }}"
+           when:
+              ansible_distribution == "CentOS" or ansible_distribution == "Redhat"
+           tags: centos
+
+         - debug:
+             msg: "{{ centos.results }}"
+           when: ansible_distribution == "CentOS"
+           register: result
+         - name: failed patches list
+           debug:
+               msg: "{{ item.msg }}"
+           when: item is failed
+           loop: "{{ centos.results }}"
+
+         - name: failed patches list
+           shell: |
+                 echo "{{ item.invocation.module_args.name }}, {{ item.msg }}, {{ inventory_hostname }}, {{ ansible_distribution_version }}" | tr -d '[]' >>  '{{ project_directory }}s1.csv'
+           register: example2out
+           when: item is failed
+           loop: "{{ centos.results }}"
+           delegate_to: localhost
+
+         - name: packages_avaliable
+           debug:
+             msg: "{{ item.invocation.module_args.name | list }}"
+           when: item is not failed
+           loop: "{{ centos.results }}"
+           register: packages_avaliable
+           delegate_to: localhost
+         
+         - name: available patches list
+           shell: |
+               echo "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}" | tr -d '[]' >>  '{{ project_directory }}s2.csv'
+           register: example2out
+           when: item is not failed
+           loop: "{{ centos.results }}"
+           delegate_to: localhost
+
+         - name: packages_updated
+           debug:
+             msg: "{{ item.invocation.module_args.name | list }}"
+           when: item is  changed
+           loop: "{{ centos.results }}"
+           register: packages_updated
+           delegate_to: localhost
+         
+         - name: patches updated list
+           shell: |
+              echo "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}, {{ ansible_distribution_version }}" | tr -d '[]' >>  '{{ project_directory }}s3.csv'
+           register: example2out
+           when: item is changed
+           loop: "{{ centos.results }}"
+           delegate_to: localhost
+
+         - name: packages already updated
+           debug:
+             msg: "{{ item.invocation.module_args.name | list }}"
+           when: item is not changed
+           loop: "{{ centos.results }}"
+           register: packages_updated
+           delegate_to: localhost
+         
+         - name: packages already updated
+           shell: |
+              echo  "{{ item.invocation.module_args.name }}, {{ inventory_hostname }}" | tr -d '[]' >>  '{{ project_directory }}s4.csv'
+           register: example2out
+           when: item is not changed
+           loop: "{{ centos.results }}"
+           delegate_to: localhost
+         - name: remove
+           shell:
+                awk -i inplace -F, 'BEGIN{OFS=","}{gsub("\047","",$0); print}' {{ project_directory }}*.csv
+           delegate_to: localhost
+
+
+
+       rescue:
+         - name: patch update
+           debug:
+              msg: 'patch update failed'
+         - name: Notification for  Insufficent disk space
+           include_tasks: mail.yml

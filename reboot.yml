@@ -1,0 +1,26 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - "{{ variable_file }}"
+  tasks:
+    - block:
+        - name: reading finalhosts
+          shell: cat '{{ project_directory }}finalhosts.csv'
+          register: hosts
+        - name: creating host group
+          add_host:
+             name: "{{ item }}"
+             groups: reboot_host
+          loop: "{{ hosts.stdout_lines }}"
+      rescue:
+          - debug:
+                  msg: Nooo Systems Require Reboot Currently!!!
+#######           
+- hosts: reboot_host
+  become: true
+  become_user: root
+  tasks:
+   - name: Rebooting the cloud server/bare metal box
+     reboot:
+        reboot_timeout: 1800
