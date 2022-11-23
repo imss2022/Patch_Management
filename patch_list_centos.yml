@@ -41,12 +41,12 @@
 
       - name: Nofification for inventories for exception
         mail:
-           host: 10.2.250.26
-           port: 25
-           username: s03772@mahindra.com
-           password: Rise%40321
-           from: ANSIBLEAUTO<ANSIBLEAUTO@mahindra.com>
-           to: GANGURDE SUHAS<GANGURDE.SUHAS@mahindra.com>
+           host: smtp.zoho.in
+           port: 465
+           username: karthickkumarp@imss.co.in
+           password: 9MneX1LDYJP2
+           from: karthickkumarp@imss.co.in
+           to: vanamadhu <vanamadhu@imss.co.in>, 
            subject: Inventory host list for exception
            body: |
                     This is host list of available patches  "{{ inventory_hostname }}"
